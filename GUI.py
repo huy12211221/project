@@ -4,7 +4,6 @@ import tkinter as tk
 from SerialArduino import *
 from datetime import date,datetime
 import matplotlib.pyplot as plt
-import numpy as np
 import continuous_threading
 import sys
 from tkinter import messagebox
@@ -20,8 +19,10 @@ window.title("Project")
 window.resizable(0,0)
 
 day_set = 0
-num_hour = 0
+num_minute = 0
+num_xet = 0
 engle_current = 0
+have_xet = 0
 n=0
 data = ""
 x=[]
@@ -35,24 +36,42 @@ time_current = tk.StringVar()
 #day_poin = tk.StringVar()
 hour_poin = tk.StringVar()
 minute_poin = tk.StringVar()
+xet_poin = tk.StringVar()
 #day_poin.set("01")
 hour_poin.set("00")
 minute_poin.set("00")
+xet_poin.set("10")
 
 E.set("0")
 
-def write_file():
-    file_object = open('D:\project pyserial\Project\data.txt',mode='r+')
-    data = file_object.readline()
-    T_str = data[0]
-    poin = data[1]
+def write_file(T):
+    file_object = open('D:\project pyserial\Project\data.txt',mode='r')
+    num = file_object.read()
+    num_split = num.split("\n")
+    T_str = num_split[0]
+    poin = num_split[1]
+    T_str += ","
+    T_str += str(T.strip())
+    poin_str= ""
+    b=1
+    poin_list = poin.split(",")
+    for i in range (len(poin_list)+1):
+        poin_str += str(b)
+        if i != len(poin_list):
+            poin_str += ","
+        b+=1
+    file_object.close()
+    file_object2 = open('D:\project pyserial\Project\data.txt',mode='w+')
+    file_object2.writelines([T_str,"\n"+poin_str])
+    file_object2.close()
     
 
-def hour_minute(time):
+def hour_minute_xet(time):
     num1 = time.split(":")
     hour = num1[0]
     minute = num1[1]
-    return hour,minute
+    xet = num1[2]
+    return hour,minute,xet
 
 def get_datetime():
     now = datetime.now()
@@ -69,19 +88,15 @@ def check_file():
         return 0
 
 def save_data(): #func cho button save data current
-    file_object= open('D:\project pyserial\Project\data.txt',mode='r+')
-    data = file_object.read()
-    print(data)
-    file_object.close()
+    write_file(T.get())
     messagebox.showinfo("Notify","Done saver!")
 
-def save_poin():
+""" def save_poin():
     #day_poin_str = spin_box1.get()
     hour_poin_str = spin_box2.get()
     minute_poin_str = spin_box3.get()
-    print(hour_poin_str,minute_poin_str)
     #print(day_poin_str,hour_poin_str,minute_poin_str)
-    #messagebox.showinfo("Notify","Done saver!")
+    #messagebox.showinfo("Notify","Done saver!") """
 
 def draw():
     global data,y,x
@@ -96,7 +111,7 @@ def draw():
         M_str2 = M_str.split(",")
         for i in range (len(T_str2)):
             x.append(int(M_str2[i]))
-            y.append(int(T_str2[i]))
+            y.append(float(T_str2[i]))
         plt.axis([0,30,5,45])
         plt.xlabel("Poin")
         plt.ylabel("Temperature")
@@ -111,23 +126,33 @@ def write_data(engle):
         engle_current += engle
         ser.write_data(engle_current)
     E.set(str(engle_current))
-
+m=0
+have_minute = 0
 def readserial():
     global day_set
-    global num_hour
+    global num_minute
+    global num_xet
+    global have_xet
+    global have_minute
     global n
+    global m
     ser_str = ser.get_data()
     T.set(ser_str[0])
     H.set(ser_str[1])
 
     num = get_datetime()
     num_coppy = copy.copy(num)
-    num_time = hour_minute(num_coppy[0])
+    num_time = hour_minute_xet(num_coppy[0])
     if n == 0: 
-        num_hour = num_time[0]
+        num_xet = num_time[2]
         n+=1
-    print(num_hour)
-
+    m = int(num_time[2])
+    if int(num_time[2]) == 59:
+        m +=60
+    if  m - int(num_xet)  == int(spin_box1.get()):
+        write_file(T.get())
+        n=0
+    print(m,num_xet)
     date_today.set(num[1])
     time_current.set(num[0])
 
@@ -163,14 +188,14 @@ et_showtime.grid(column=3,row=0,sticky=W,padx=5)
 et_showdate = tk.Entry(frame_sensor,textvariable=date_today,state="disabled",width=10)
 et_showdate.grid(column=2,row=0,sticky=W,padx=5)
 
-b_savepoin = tk.Button(frame_sensor,text="Save poin",command=save_poin)
-b_savepoin.grid(column=2,row=2,padx=5,pady=5)
+""" b_savepoin = tk.Button(frame_sensor,text="Save poin",command=save_poin)
+b_savepoin.grid(column=2,row=2,padx=5,pady=5) """
 
-""" spin_box1 = ttk.Spinbox(frame_sensor,from_=0,to=30,textvariable=day_poin,wrap=True,width=4)
-spin_box1.grid(column=2,row=1,sticky=W,padx=5) """
+spin_box1 = ttk.Spinbox(frame_sensor,from_=10,to=60,textvariable=xet_poin,wrap=True,width=4)
+spin_box1.grid(column=5,row=1,sticky=W,padx=0)
 spin_box2 = ttk.Spinbox(frame_sensor,from_=0,to=24,textvariable=hour_poin,wrap=True,width=6)
 spin_box2.grid(column=3,row=1,sticky=W,padx=5)
-spin_box3 = ttk.Spinbox(frame_sensor,from_=1,to=60,textvariable=minute_poin,wrap=True,width=4)
+spin_box3 = ttk.Spinbox(frame_sensor,from_=0,to=60,textvariable=minute_poin,wrap=True,width=4)
 spin_box3.grid(column=4,row=1,sticky=W,padx=0)
 
 b_Get=tk.Button(frame_sensor,text="Save data current",command=save_data)
